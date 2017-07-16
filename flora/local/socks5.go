@@ -1,14 +1,13 @@
-package flora
+package local
 
 import (
 	"io"
 	"net"
 	"strconv"
-	ss "github.com/shadowsocks/shadowsocks-go/shadowsocks"
 	"encoding/binary"
 	"log"
 )
-
+// most copy from shadowsocks
 /*
 socks5 protocol
 
@@ -46,20 +45,20 @@ byte |0   |  1   | 2  |   3    | 4 | .. | n-2 | n-1 | n |
 */
 
 //local socks server auth
-func handshake(conn net.Conn,first byte ) (err error) {
+func handshake(conn net.Conn,first byte) (err error) {
 	const (
-		idVer     = 0
 		idNmethod = 1
+		// MaxAddrLen is the maximum size of SOCKS address in bytes.
+		maxAddrLen = 1 + 1 + 255 + 2
 	)
 	// version identification and method selection message in theory can have
 	// at most 256 methods, plus version and nmethod field in total 258 bytes
 	// the current rfc defines only 3 authentication methods (plus 2 reserved),
 	// so it won't be such long in practice
 
-	buf := make([]byte, 258)
-	buf[idVer] = first
+	buf := make([]byte, maxAddrLen)
+	buf[socksIdVer] = first
 	var n int
-	ss.SetReadTimeout(conn)
 	// make sure we get the nmethod field
 	if n, err = io.ReadAtLeast(conn, buf[1:], idNmethod+1); err != nil {
 		return
@@ -88,7 +87,6 @@ func handshake(conn net.Conn,first byte ) (err error) {
 // local socks server  connect
 func socks5Connect(conn net.Conn) (host string, hostType int, err error) {
 	const (
-		idVer   = 0
 		idCmd   = 1
 		idType  = 3 // address type index
 		idIP0   = 4 // ip addres start index
@@ -102,7 +100,6 @@ func socks5Connect(conn net.Conn) (host string, hostType int, err error) {
 	// refer to getRequest in flora.go for why set buffer size to 263
 	buf := make([]byte, 263)
 	var n int
-	ss.SetReadTimeout(conn)
 	// read till we get possible domain length field
 	if n, err = io.ReadAtLeast(conn, buf, idDmLen+1); err != nil {
 		return
@@ -112,7 +109,7 @@ func socks5Connect(conn net.Conn) (host string, hostType int, err error) {
 	//	err = errVer
 	//	return
 	//}
-	if buf[idCmd] != socksCmdConnect {
+	if buf[idCmd] != socks5CmdConnect {
 		err = errCmd
 		return
 	}
@@ -120,11 +117,11 @@ func socks5Connect(conn net.Conn) (host string, hostType int, err error) {
 	reqLen := -1
 	hostType = int(buf[idType])
 	switch hostType {
-	case typeIPv4:
+	case TypeIPv4:
 		reqLen = lenIPv4
-	case typeIPv6:
+	case TypeIPv6:
 		reqLen = lenIPv6
-	case typeDm:
+	case TypeDm:
 		reqLen = int(buf[idDmLen]) + lenDmBase
 	default:
 		err = errAddrType
@@ -141,18 +138,17 @@ func socks5Connect(conn net.Conn) (host string, hostType int, err error) {
 		err = errReqExtraData
 		return
 	}
-
 	//raw := buf[idType:reqLen]
 	switch hostType {
-	case typeIPv4:
+	case TypeIPv4:
 		host = net.IP(buf[idIP0: idIP0+net.IPv4len]).String()
-	case typeIPv6:
+	case TypeIPv6:
 		host = net.IP(buf[idIP0: idIP0+net.IPv6len]).String()
-	case typeDm:
+	case TypeDm:
 		host = string(buf[idDm0: idDm0+buf[idDmLen]])
 	}
 	port := binary.BigEndian.Uint16(buf[reqLen-2: reqLen])
 	host = net.JoinHostPort(host, strconv.Itoa(int(port)))
-	_, err = conn.Write([]byte{0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x08, 0x43})
+	_, err = conn.Write([]byte{socksVer5, 0, 0, 1, 0, 0, 0, 0, 8, 67})
 	return
 }
