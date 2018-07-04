@@ -1,10 +1,10 @@
 package flora
 
 import (
-	ss "github.com/shadowsocks/shadowsocks-go/shadowsocks"
-	"net"
 	"errors"
+	ss "github.com/shadowsocks/shadowsocks-go/shadowsocks"
 	"log"
+	"net"
 )
 
 const (
@@ -17,7 +17,6 @@ const (
 
 	LocalServerSocksV5 = "localSocksv5"
 	LocalServerHttp    = "localHttp"
-
 )
 
 type ProxyServer interface {
@@ -49,7 +48,7 @@ var (
 )
 
 func Run(listenAddr string) {
-		ln, err := net.Listen("tcp", listenAddr)
+	ln, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,7 +79,7 @@ func handleConnection(conn net.Conn) {
 			remote.Close()
 		}
 	}()
-	go ss.PipeThenClose(conn, remote)
-	ss.PipeThenClose(remote, conn)
+	go ss.PipeThenClose(conn, remote, nil)
+	ss.PipeThenClose(remote, conn, nil)
 	isClose = true
 }
