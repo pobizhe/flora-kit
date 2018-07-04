@@ -1,8 +1,8 @@
 package main
 
 import (
-	"flora-kit/flora"
 	"flag"
+	"github.com/pobizhe/flora-kit/flora"
 )
 
 
