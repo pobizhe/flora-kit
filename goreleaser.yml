@@ -12,7 +12,7 @@ build:
   ldflags: -s -w
 release:
   github:
-    owner: huacnlee
+    owner: pobizhe
     name: flora-kit
 # Archive customization
 archive:
